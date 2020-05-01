@@ -1,4 +1,5 @@
 """Module with the base models."""
+from copy import deepcopy
 
 class Portfolio():
     """"""
@@ -6,13 +7,53 @@ class Portfolio():
     def __init__(self, cash=0):
         self.cash = cash
         self.assets = {}
+        self.distributions = {}
 
-    def forecast(self, years):
+    def add(self, asset, name):
+        self.assets[name] = asset
+
+    def invest(self, percent: float, name):
+        self.distributions[name] = percent
+
+    def distribute(self, amount):
+        remaining = amount
+        for name, percent in self.distributions.items():
+            portion = amount * percent
+            self.assets[name].deposit(portion)
+            print(f"Deposited ${portion} in {name}.")
+            print(f"{name} now worth ${self.assets[name].value}.")
+            remaining -= portion
+        self.cash += remaining
+        print(f"Deposited ${remaining} in savings.")
+
+    def mature(self, years):
         """"""
-        for asset in self.assets.values():
+        profit = 0
+        for name, asset in self.assets.items():
             asset.mature(years)
-            self.cash += asset.withdraw()
+            print(f"Received ${asset.profit} from {name}.")
+            profit += asset.withdraw()
+        self.distribute(profit)
         return self.value
+
+    def forecast(self, years, comp='monthly'):
+        """"""
+        original = deepcopy(self)
+        comp_def = {
+            'daily': 365,
+            'weekly': 52,
+            'biweekly': 26,
+            'monthly': 12,
+            'quarterly': 4,
+            'yearly': 1,
+        }
+        period = comp_def[comp]
+        interval = 1/period
+        for _ in range(period * years):
+            result = self.mature(interval)
+        self.cash = original.cash
+        self.assets = original.assets
+        return result
 
     @property
     def value(self):
@@ -56,7 +97,7 @@ class Dividend(Asset):
         self.div_yield = div_yield
 
     def mature(self, years):
-        self.profit += (self.equity * self.div_yield)**years
+        self.profit += self.equity * (1 + self.div_yield)**years
 
 class Investment(Asset):
     """"""
