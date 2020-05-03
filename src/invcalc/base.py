@@ -1,7 +1,10 @@
 """Module with the base models."""
+import logging
 from copy import deepcopy
 
 from invcalc.time import Calendar
+
+logger = logging.getLogger(__name__)
 
 class Portfolio():
     """"""
@@ -23,11 +26,11 @@ class Portfolio():
         for name, percent in self.distributions.items():
             portion = amount * percent
             self.assets[name].deposit(portion)
-            # print(f"Deposited ${portion} in {name}.")
-            # print(f"{name} now worth ${self.assets[name].value}.")
+            logger.debug(f"Deposited ${portion} in {name}.")
+            logger.debug(f"{name} now worth ${self.assets[name].value}.")
             remaining -= portion
         self.cash += remaining
-        # print(f"Deposited ${remaining} in cash.")
+        logger.debug(f"Deposited ${remaining} in cash.")
 
     def mature(self, years):
         """"""
@@ -37,7 +40,7 @@ class Portfolio():
             for name, asset in self.assets.items():
                 if asset.period in event:
                     asset.capitalize()
-                    # print(f"Received ${asset.profit} from {name}.")
+                    logger.debug(f"Received ${asset.profit} from {name}.")
                     profit += asset.withdraw()
             self.distribute(profit)
         return self.value
