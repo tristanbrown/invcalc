@@ -1,6 +1,8 @@
 """Module with the base models."""
 from copy import deepcopy
 
+from invcalc.time import Calendar
+
 class Portfolio():
     """"""
 
@@ -8,6 +10,7 @@ class Portfolio():
         self.cash = cash
         self.assets = {}
         self.distributions = {}
+        self.calendar = Calendar()
 
     def add(self, asset, name):
         self.assets[name] = asset
@@ -20,39 +23,29 @@ class Portfolio():
         for name, percent in self.distributions.items():
             portion = amount * percent
             self.assets[name].deposit(portion)
-            print(f"Deposited ${portion} in {name}.")
-            print(f"{name} now worth ${self.assets[name].value}.")
+            # print(f"Deposited ${portion} in {name}.")
+            # print(f"{name} now worth ${self.assets[name].value}.")
             remaining -= portion
         self.cash += remaining
-        print(f"Deposited ${remaining} in savings.")
+        # print(f"Deposited ${remaining} in cash.")
 
     def mature(self, years):
         """"""
-        profit = 0
-        for name, asset in self.assets.items():
-            asset.mature(years)
-            print(f"Received ${asset.profit} from {name}.")
-            profit += asset.withdraw()
-        self.distribute(profit)
+        events = self.calendar.advance(years * 12)
+        for event in events:
+            profit = 0
+            for name, asset in self.assets.items():
+                if asset.period in event:
+                    asset.capitalize()
+                    # print(f"Received ${asset.profit} from {name}.")
+                    profit += asset.withdraw()
+            self.distribute(profit)
         return self.value
 
-    def forecast(self, years, comp='monthly'):
+    def forecast(self, years):
         """"""
-        original = deepcopy(self)
-        comp_def = {
-            'daily': 365,
-            'weekly': 52,
-            'biweekly': 26,
-            'monthly': 12,
-            'quarterly': 4,
-            'yearly': 1,
-        }
-        period = comp_def[comp]
-        interval = 1/period
-        for _ in range(period * years):
-            result = self.mature(interval)
-        self.cash = original.cash
-        self.assets = original.assets
+        temporary = deepcopy(self)
+        result = temporary.mature(years)
         return result
 
     @property
@@ -66,6 +59,7 @@ class Asset():
     def __init__(self, funding=0):
         self.equity = funding
         self.profit = 0
+        self.period = None
 
     def withdraw(self):
         curr_profit = self.profit
@@ -84,27 +78,30 @@ class Income(Asset):
 
     def __init__(self, salary: float):
         super().__init__()
+        self.period = 'monthly'
         self.salary = salary
 
-    def mature(self, years):
-        self.profit = self.salary * years
+    def capitalize(self):
+        self.profit += self.salary / 12
 
 class Dividend(Asset):
     """"""
 
     def __init__(self, funding, div_yield: float):
         super().__init__(funding)
+        self.period = 'quarterly'
         self.div_yield = div_yield
 
-    def mature(self, years):
-        self.profit += self.equity * (1 + self.div_yield)**years
+    def capitalize(self):
+        self.profit += self.equity * self.div_yield / 4
 
 class Investment(Asset):
     """"""
 
     def __init__(self, funding, inv_yield: float):
         super().__init__(funding)
+        self.period = 'monthly'
         self.inv_yield = inv_yield
 
-    def mature(self, years):
-        self.equity += (self.equity * self.inv_yield)**years
+    def capitalize(self):
+        self.equity += self.equity * self.inv_yield / 12
